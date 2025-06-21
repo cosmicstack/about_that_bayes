@@ -1,0 +1,63 @@
+---
+title: "Bayes Law applied to medical tests"
+author: "Krish Arunasalam"
+date: "2022-09-06"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Draw a graph of the probability of having a disease, given a positive
+test, as a function of:
+
+a.  the test sensitivity (true positive)
+b.  the false positive rate
+c.  the disease prevalence
+
+Draw graphs a and b for a rare (1% prevalence) and common (10%
+prevalence) disease. What do these graphs imply about the relative
+importance of the various characteristics of medical tests?
+
+``` {r}
+p_disease <- c(0.01, 0.1)
+p_no_disease <- 1 - p_disease
+p_pos_g_disease <- seq(0.99, 0.01, -0.01)
+p_neg_g_disease <- 1- p_pos_g_disease
+p_pos_g_no_disease <- seq(0.01, 0.99, 0.01)
+p_neg_g_no_disease <- 1 - p_pos_g_no_disease
+```
+
+Using the set probabilities let's compute the posterior probabilities:
+
+``` {r}
+posterior1 <- 0
+posterior2 <- 0
+
+posterior1 <- (p_pos_g_disease * p_disease[1])/(p_pos_g_disease * p_disease[1] + p_pos_g_no_disease * p_no_disease[1])
+
+posterior2 <- (p_pos_g_disease * p_disease[2])/(p_pos_g_disease * p_disease[2] + p_pos_g_no_disease * p_no_disease[2])
+```
+
+Plotting the graphs in ggplot for section (a):
+
+``` {r}
+data <- data.frame('true_positive'=p_pos_g_disease, 'false_positive'=p_pos_g_no_disease,'pr_disease'=posterior1)
+ggplot(data) +
+  geom_line(aes(true_positive, pr_disease)) +
+  geom_line(aes(false_positive, pr_disease)) +
+  labs(title = 'For disease prevalence 0.01')
+```
+
+``` {r}
+data <- data.frame('true_positive'=p_pos_g_disease, 'false_positive'=p_pos_g_no_disease,'pr_disease'=posterior2)
+ggplot(data) +
+  geom_line(aes(true_positive, pr_disease)) +
+  geom_line(aes(false_positive, pr_disease)) +
+  labs(title = 'For disease prevalence 0.1')
+```
