@@ -40,3 +40,30 @@ dens(sample.sigma)
 
 PI(sample.mu)
 PI(sample.sigma)
+
+# ============================================================================ #
+
+plot(d2$height, d2$weight)
+
+xbar <- mean(d2$weight)
+
+m4.3 <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * (weight - xbar),
+    a ~ dnorm(178, 20),
+    b ~ dlnorm(0, 1),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d2
+)
+
+precis(m4.3)
+pairs(m4.3)
+round(vcov(m4.3), 3)
+
+post_20 <- extract.samples(m4.3, n = 20)
+
+plot(d2$height, d2$weight)
+# not working; fix
+for (i in 1:20) curve(post_20$a[i] + post_20$b[i] * (x - xbar), col = col.alpha("black", 0.3), add = T)
