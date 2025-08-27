@@ -67,3 +67,46 @@ post_20 <- extract.samples(m4.3, n = 20)
 plot(d2$height, d2$weight)
 # not working; fix
 for (i in 1:20) curve(post_20$a[i] + post_20$b[i] * (x - xbar), col = col.alpha("black", 0.3), add = T)
+
+# ============================================================================ #
+
+plot(height ~ weight, d)
+
+d$weight_s <- (d$weight - mean(d$weight))/sd(d$weight)
+d$weight_s2 <- d$weight_s^2
+
+m4.5 <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b1*weight_s + b2*weight_s2,
+    a ~ dnorm(178, 20),
+    b1 ~ dlnorm(0, 1),
+    b2 ~ dnorm(0, 1),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d
+)
+
+precis(m4.5)
+
+weight.seq <- seq(from =-2.2, to = 2, length.out = 30)
+pred_dat <- list(weight_s = weight.seq, weight_s2 = weight.seq^2)
+mu <- link(m4.5, data = pred_dat)
+dim(mu)
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI, prob = 0.89)
+sim.height <- sim(m4.5, data = pred_dat)
+dim(sim.height)
+height.PI <- apply(sim.height, 2, PI, prob = 0.89)
+
+plot(height ~ weight, d, col=col.alpha(rangi2, 0.5))
+lines(weight.seq, mu.mean)
+shade(mu.PI, weight.seq)
+shade(height.PI, weight.seq)
+
+# ============================================================================ #
+
+data("cherry_blossoms")
+d <- cherry_blossoms
+precis(d)
+plot(doy ~ year, d)
