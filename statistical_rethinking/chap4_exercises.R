@@ -122,7 +122,7 @@ plot(d2$year, d2$doy, col = col.alpha(rangi2, 0.3), pch=16)
 shade(mu_PI, d2$year, col = col.alpha("black", 0.5))
 
 # Experiment with perturbations
-num_knots <- 50
+num_knots <- 20
 knot_list <- quantile(d2$year, probs = seq(0, 1, length.out = num_knots))
 
 B <- bs(d2$year, knots = knot_list[-c(1, num_knots)], degree = 3, intercept = T)
@@ -131,7 +131,7 @@ model <- quap(
     D ~ dnorm(mu, sigma),
     mu <- a + B %*% w,
     a ~ dnorm(100, 10),
-    w ~ dnorm(0, 10),
+    w ~ dnorm(0, 15),
     sigma ~ dexp(1)
   ),
   data = list(D = d2$doy, B=B),
@@ -142,5 +142,44 @@ post <- extract.samples(model)
 w <- apply(post$w, 2, mean)
 mu <- link(model)
 mu_PI <- apply(mu, 2, PI, prob=0.89)
-plot(d2$year, d2$doy, col = col.alpha(rangi2, 0.3), pch=16)
+plot(d2$year, d2$doy, col = col.alpha(rangi2, 0.3), pch=16, main = "num_knots = 20, weights sd = 15")
 shade(mu_PI, d2$year, col = col.alpha("black", 0.5))
+
+# 4H1
+
+data(Howell1)
+d <- Howell1
+d2 <- d[d$age >= 18, ]
+
+model.4h1 <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 10),
+    b ~ dlnorm(0, 1),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d2
+)
+
+weights.4h1 <- c(46.95, 43.72, 64.78, 32.59, 54.63)
+
+heights.4h1 <- link(model.4h1, data = data.frame(weight=weights.4h1))
+expected_heights.4h1 <- apply(heights.4h1, 2, mean)
+heights.4h1_89p.interval <- apply(heights.4h1, 2, PI)
+data.frame(
+  "id" = seq(1:5),
+  "weight" = weights.4h1,
+  "expected height" = expected_heights.4h1,
+  "lower" = heights.4h1_89p.interval[1, ], 
+  "upper" = heights.4h1_89p.interval[2, ]  
+) %>%
+  ggplot(aes(id, expected.height)) +
+  geom_point() +
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper,
+      width = 0.1
+    )
+  )
