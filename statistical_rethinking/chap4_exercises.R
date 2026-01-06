@@ -183,3 +183,82 @@ data.frame(
       width = 0.1
     )
   )
+
+# 4H2
+
+d3 <- d[d$age < 18, ]
+length(d3$height) == 192
+
+model.4h2 <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(100, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d3
+)
+
+precis(model.4h2)
+
+
+summary(d3)
+weight.seq <- seq(4, 45, 1)
+mu <- link(model.4h2, data = data.frame(weight=weight.seq))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI, prob = 0.89)
+
+sim.height <- sim(model.4h2, data = list(weight = weight.seq))
+height.PI <- apply(sim.height, 2, PI, prob = 0.89)
+
+plot(d3$weight, d3$height)
+lines(weight.seq, mu.mean)
+shade(mu.PI, weight.seq)
+shade(height.PI, weight.seq)
+
+# 4H3
+d$logweight <- log(d$weight)
+
+model.4h3 <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * log(weight),
+    a ~ dnorm(100, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d
+)
+
+precis(model.4h3)
+
+summary(d)
+weight.seq <- seq(4, 70, 1)
+
+mu <- link(model.4h3, data = data.frame(weight = weight.seq))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI, prob = 0.97)
+sim.heights <- sim(model.4h3, data = list(weight = weight.seq))
+sim.heights.mean <- apply(sim.heights, 2, mean)
+sim.heights.PI <- apply(sim.heights, 2, PI, prob = 0.97)
+
+plot(height ~ weight, data=d)
+lines(weight.seq, mu.mean)
+shade(mu.PI, weight.seq)
+lines(weight.seq, sim.heights.mean)
+shade(sim.heights.PI, weight.seq)
+
+# Do the same with ggplot
+row.names(mu.PI) <- c("mu.lower", "mu.upper")
+row.names(sim.heights.PI) <- c("sim.heights.lower", "sim.heights.upper")
+
+plot.df <- cbind(weight.seq, mu.mean, t(mu.PI), sim.heights.mean, t(sim.heights.PI))
+
+ggplot(d) +
+  geom_point(aes(weight, height), alpha = 0.4, shape=1, color="skyblue") +
+  geom_ribbon(data = plot.df, aes(weight.seq, ymin = mu.lower, ymax = mu.upper), color="lightgrey", alpha=0.1) +
+  geom_line(data = plot.df, aes(weight.seq, mu.mean), color="darkblue", alpha = 0.5) +
+  geom_ribbon(data = plot.df, aes(weight.seq, ymin = sim.heights.lower, ymax = sim.heights.upper), color="lightgrey", alpha=0.2) +
+  geom_line(data = plot.df, aes(weight.seq, sim.heights.mean), color="salmon", alpha = 0.5) +
+  theme_bw()
