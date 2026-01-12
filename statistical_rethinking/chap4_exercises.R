@@ -262,3 +262,22 @@ ggplot(d) +
   geom_ribbon(data = plot.df, aes(weight.seq, ymin = sim.heights.lower, ymax = sim.heights.upper), color="lightgrey", alpha=0.2) +
   geom_line(data = plot.df, aes(weight.seq, sim.heights.mean), color="salmon", alpha = 0.5) +
   theme_bw()
+
+# 4H4
+set.seed(2026)
+N <- 100
+a <- rnorm(N, mean = 178, sd = 20)
+b1 <- rlnorm(N, 0, 1)
+b2 <- rbeta(N, 2, 10)
+
+plot(NULL, xlim = range(d$weight), ylim = c(100, 600), xlab = "weight", ylab = "height")
+for (i in 1:N) curve(a[i] + b1[i]*x + b2[i]*x^2, from = min(d$weight), to = max(d$weight), add = TRUE, col = col.alpha("black", 0.2))
+
+# 4H5
+data("cherry_blossoms")
+d <- cherry_blossoms
+
+ggplot(d, aes(temp, doy)) +
+  geom_point(alpha=0.5)
+
+
