@@ -280,4 +280,97 @@ d <- cherry_blossoms
 ggplot(d, aes(temp, doy)) +
   geom_point(alpha=0.5)
 
+d2 <- d %>%
+  select(doy, temp) %>%
+  filter(!is.na(doy) & !is.na(temp))
 
+model.4h5 <- quap(
+  alist(
+    doy ~ dnorm(mu, sigma),
+    mu <- a + b * temp,
+    a ~ dnorm(10, 10),
+    b ~ dlnorm(1, 1),
+    sigma ~ dunif(0, 20)
+  ),
+  data = d2
+)
+
+precis(model.4h5)
+
+temp.seq <- seq(4, 9, 0.1)
+
+mu <- link(model.4h5, data = data.frame(temp = temp.seq))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI, prob = 0.89)
+sim.doy <- sim(model.4h5, data = list(temp = temp.seq))
+sim.doy.mean <- apply(sim.doy, 2, mean)
+sim.doy.PI <- apply(sim.doy, 2, PI, prob = 0.89)
+
+plot(doy ~ temp, data=d2)
+lines(temp.seq, mu.mean)
+shade(mu.PI, temp.seq)
+lines(temp.seq, sim.doy.mean)
+shade(sim.doy.PI, temp.seq)
+
+# 4H6
+
+d3 <- d[complete.cases(d$doy), ]
+num_knots <- 15
+knot_list <- quantile(d3$year, probs = seq(0, 1, length.out=num_knots))
+
+B <- bs(
+  d3$year,
+  knots = knot_list[-c(1, num_knots)],
+  degree = 3,
+  intercept = TRUE
+)
+
+# Generate grid for plotting
+year_seq <- seq(min(d3$year), max(d3$year), length.out = 100)
+
+# Generate basis functions for the plotting grid
+B_plot <- bs(
+  year_seq,
+  knots = knot_list[-c(1, num_knots)],
+  degree = 3,
+  intercept = TRUE
+)
+
+set.seed(2026)
+N <- 100
+a <- rnorm(N, mean = 100, sd = 10)
+# Generate N different weight vectors
+w <- matrix(rnorm(N * ncol(B), 10, 1), nrow = N, ncol = ncol(B))
+
+plot(NULL, xlim = range(d3$year), ylim = c(80, 150), 
+     xlab = "year", ylab = "day in year")
+
+for (i in 1:N) {
+  mu <- a[i] + B_plot %*% w[i, ]
+  lines(year_seq, mu, col = col.alpha("black", 0.2))
+}
+
+# 4H8
+
+num_knots <- 15
+knot_list <- quantile(d3$year, probs = seq(0, 1, length.out=num_knots))
+
+B <- bs(
+  d3$year,
+  knots = knot_list[-c(1, num_knots)],
+  degree = 3,
+  intercept = F
+)
+
+model.4h8 <- quap(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- B %*% w,
+    w ~ dnorm(0, 10),
+    sigma ~ dexp(1)
+  ),
+  data = list(D = d3$doy, B = B),
+  start = list(w = rep(0, ncol(B)))
+)
+
+precis(model.4h8)
