@@ -14,15 +14,26 @@ ggplot(d, aes(A, M)) +
 model5.1 <- quap(
   alist(
     D ~ dnorm(mu, sigma),
-    mu <- a * bA * A,
+    mu <- a + bA * A,
     a ~ dnorm(0, 0.2),
     bA ~ dnorm(0, 0.5),
     sigma ~ dexp(1)
   ),
   data = d
 )
-
 precis(model5.1)
+
+model5.2 <- quap(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- a + bM * M,
+    a ~ dnorm(0, 0.2),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(model5.2)
 
 set.seed(10)
 prior <- extract.prior(model5.1)
@@ -40,3 +51,46 @@ mu.PI <- apply(mu, 2, PI, prob = 0.89)
 plot(D ~ A, data = d, col = rangi2)
 lines(A.seq, mu.mean, lwd = 2)
 shade(mu.PI, A.seq)
+
+library(dagitty)
+dag5.1 <- dagitty("dag{A -> D; A -> M; M -> D}")
+coordinates(dag5.1) <- list(x = c(A = 0, D = 1, M = 2), y = c(A = 0, D = 1, M = 0))
+drawdag(dag5.1)
+
+impliedConditionalIndependencies(dag5.1)
+
+model5.3 <- quap(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- a + bA * A + bM * M,
+    a ~ dnorm(0, 0.2),
+    bA ~ dnorm(0, 0.5),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(model5.3)
+
+
+model.DMA.reader <- quap(
+  alist(
+    M ~ dnorm(mu, sigma),
+    mu <- a + bA * A,
+    a ~ dnorm(0, 0.2),
+    bA ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(model.DMA.reader)
+
+plot(
+  coeftab(
+    model5.1,
+    model5.2,
+    model5.3,
+    model.DMA.reader
+  ),
+  par = c("bA", "bM")
+)
