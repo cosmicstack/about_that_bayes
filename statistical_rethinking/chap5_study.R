@@ -73,7 +73,7 @@ model5.3 <- quap(
 precis(model5.3)
 
 
-model.DMA.reader <- quap(
+model5.4 <- quap(
   alist(
     M ~ dnorm(mu, sigma),
     mu <- a + bA * A,
@@ -83,14 +83,60 @@ model.DMA.reader <- quap(
   ),
   data = d
 )
-precis(model.DMA.reader)
+precis(model5.4)
 
 plot(
   coeftab(
     model5.1,
     model5.2,
     model5.3,
-    model.DMA.reader
+    model5.4
   ),
   par = c("bA", "bM")
 )
+
+# PREDICTOR RESIDUAL PLOTS
+
+mu <- link(model5.4)
+mu_mean <- apply(mu, 2, mean)
+mu_resid <- d$M - mu_mean
+
+data.frame(marriage_rate_residuals = mu_resid, divorce_rate = d$D) %>%
+  ggplot(aes(marriage_rate_residuals, divorce_rate)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = "y ~ x")
+
+model5.5 <- quap(
+  alist(
+    A ~ dnorm(mu, sigma),
+    mu <- a + bM * M,
+    a ~ dnorm(0, 0.2),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(model5.5)
+
+mu <- link(model5.5)
+mu_mean <- apply(mu, 2, mean)
+age_resid <- d$A - mu_mean
+
+data.frame(age_residuals = age_resid, divorce_rate = d$D) %>%
+  ggplot(aes(age_residuals, divorce_rate)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = "y ~ x")
+
+# POSTERIOR PREDICTION PLOTS
+
+mu <- link(model5.3)
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI, prob = 0.89)
+
+D.sim <- sim(model5.3, n=1e4)
+D.PI <- apply(D.sim, 2, PI)
+
+plot(mu.mean ~ d$D, col = rangi2, ylim = range(mu.PI), xlab = "Observed", ylab = "Predicted")
+abline(a=0, b=1, lty=2)
+for (i in 1:nrow(d)) lines(rep(d$D[i], 2), mu.PI[, i], col = rangi2)
+identify(x = d$D, y = mu.mean, labels = d$Loc)
