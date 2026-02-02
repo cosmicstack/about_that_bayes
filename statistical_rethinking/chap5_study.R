@@ -140,3 +140,32 @@ plot(mu.mean ~ d$D, col = rangi2, ylim = range(mu.PI), xlab = "Observed", ylab =
 abline(a=0, b=1, lty=2)
 for (i in 1:nrow(d)) lines(rep(d$D[i], 2), mu.PI[, i], col = rangi2)
 identify(x = d$D, y = mu.mean, labels = d$Loc)
+
+# COUNTERFACTUAL PLOTS
+
+model5.3_A <- quap(
+  alist(
+   D ~ dnorm(mu, sigma),
+   mu <- a + bA * A + bM * M,
+   a ~ dnorm(0, 0.2),
+   bM ~ dnorm(0, 0.5),
+   bA ~ dnorm(0, 0.5),
+   sigma ~ dexp(1),
+   
+   M ~ dnorm(mu_M, sigma_M),
+   mu_M <- a_M + bAM * A,
+   a_M ~ dnorm(0, 0.2),
+   bAM ~ dnorm(0, 0.5),
+   sigma_M ~ dexp(1)
+  ),
+  data = d
+)
+
+precis(model5.3_A)
+
+A_seq <- seq(-2, 2, length.out = 30)
+
+# The order of vars below is also the order of simulation
+s <- sim(model5.3_A, data = data.frame(A=A_seq), vars = c("M", "D"))
+
+s$M[1:5, 1:5]
