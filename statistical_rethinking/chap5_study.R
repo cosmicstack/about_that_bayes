@@ -164,8 +164,49 @@ model5.3_A <- quap(
 precis(model5.3_A)
 
 A_seq <- seq(-2, 2, length.out = 30)
+sim_dat <- data.frame(A=A_seq)
 
 # The order of vars below is also the order of simulation
 s <- sim(model5.3_A, data = data.frame(A=A_seq), vars = c("M", "D"))
 
 s$M[1:5, 1:5]
+
+plot(sim_dat$A, colMeans(s$D), ylim = c(-2,2), type = "l", xlab = "Manipulated A", ylab = "counterfactual D")
+shade(apply(s$D, 2, PI), sim_dat$A)
+mtext("Total counterfactual effect of A on D")
+
+# Total counterfactual effect of A on D
+data.frame(
+  A = sim_dat$A,
+  D = colMeans(s$D),
+  D = t(apply(s$D, 2, PI))
+) %>%
+  select(A, D, ci_lower = D.5., ci_upper = D.94.) %>%
+  ggplot() +
+  geom_line(aes(A, D)) +
+  geom_ribbon(aes(
+    x = A,
+    ymin = ci_lower,
+    ymax = ci_upper,
+  ),
+  color = "grey",
+  alpha = 0.2
+)
+
+# Counterfactual effect of A on M
+data.frame(
+  A = sim_dat$A,
+  M = colMeans(s$M),
+  M = t(apply(s$M, 2, PI))
+) %>%
+  select(A, M, ci_lower = M.5., ci_upper = M.94.) %>%
+  ggplot() +
+  geom_line(aes(A, M)) +
+  geom_ribbon(aes(
+    x = A,
+    ymin = ci_lower,
+    ymax = ci_upper,
+  ),
+  color = "grey",
+  alpha = 0.2
+  )
