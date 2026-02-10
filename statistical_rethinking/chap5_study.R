@@ -210,3 +210,124 @@ data.frame(
   color = "grey",
   alpha = 0.2
   )
+
+################################################################################
+#####                         MASKED RELATIONSHIPS                         #####
+################################################################################
+
+data(milk)
+d <- milk
+str(d)
+
+d$K <- standardize(d$kcal.per.g)
+d$N <- standardize(d$neocortex.perc)
+d$M <- standardize(log(d$mass))
+
+ggplot(d) +
+  geom_histogram(aes(mass))
+
+dcc <- d[complete.cases(d$K, d$N, d$M), ]
+
+model5.5 <- quap(
+  alist(
+    K ~ dnorm(mu, sigma),
+    mu <- a + bN * N,
+    a ~ dnorm(0, 0.2),
+    bN ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = dcc
+)
+
+precis(model5.5)
+
+# plotting priors using ggplot 
+
+prior <- extract.prior(model5.5)
+xseq <- c(-2, 2)
+mu <- link(model5.5, post = prior, data = list(N = xseq))
+
+# would have to sample first, then pivot longer - not worth the time, so
+
+plot(NULL, xlim=xseq, ylim=xseq)
+for(i in 1:50) lines(xseq, mu[i, ], col=col.alpha("black", 0.3))
+
+xseq <- seq(from = min(dcc$N) - 0.2, to = max(dcc$N) + 0.2, length.out = 30)
+mu <- link(model5.5, data = list(N = xseq))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+plot(K ~ N, data = dcc)
+lines(xseq, mu.mean, lwd = 2)
+shade(mu.PI, xseq)
+
+ggplot() +
+  geom_point(data = dcc, aes(N, K)) +
+  geom_line(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, mu.mean)) +
+  geom_ribbon(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, ymin = X5., ymax = X94.), alpha = 0.2)
+
+model5.6 <- quap(
+  alist(
+    K ~ dnorm(mu, sigma),
+    mu <- a + bM * M,
+    a ~ dnorm(0, 0.2),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = dcc
+)
+precis(model5.6)
+
+mu <- link(model5.6, data = list(M=xseq))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+
+ggplot() +
+  geom_point(data = dcc, aes(M, K)) +
+  geom_line(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, mu.mean)) +
+  geom_ribbon(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, ymin = X5., ymax = X94.), alpha = 0.2)
+
+model5.7 <- quap(
+  alist(
+    K ~ dnorm(mu, sigma),
+    mu <- a + bN*N + bM*M,
+    a ~ dnorm(0, 0.2),
+    bN ~ dnorm(0, 0.5),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = dcc
+)
+precis(model5.7)
+
+plot(coeftab(model5.5, model5.6, model5.7), pars=c("bM", "bN"))
+
+pairs(~K + M + N, data = dcc)
+
+xseq <- seq(from = min(dcc$M) - 0.2, to = max(dcc$M) + 0.2, length.out = 30)
+mu <- link(model5.7, data = data.frame(M = xseq, N = 0))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+
+ggplot() +
+  geom_line(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, mu.mean)) +
+  geom_ribbon(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, ymin = X5., ymax = X94.), alpha = 0.2) +
+  labs(title = "Counterfactual holding N = 0")
+
+xseq <- seq(from = min(dcc$N) - 0.2, to = max(dcc$N) + 0.2, length.out = 30)
+mu <- link(model5.7, data = data.frame(N = xseq, M = 0))
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+
+ggplot() +
+  geom_line(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, mu.mean)) +
+  geom_ribbon(data = data.frame(xseq, mu.mean, t(mu.PI)), aes(xseq, ymin = X5., ymax = X94.), alpha = 0.2) +
+  labs(title = "Counterfactual holding M = 0")
+
+dag5.7 <- dagitty("dag{
+                  M -> K <- N
+                  M -> N
+}")
+coordinates(dag5.7) <- list(x=c(M=0, K=1, N=2), y=c(M=0.5, K=1, N=0.5))
+MElist <- equivalentDAGs(dag5.7)
+drawdag(dag5.7)
+drawdag(MElist)
