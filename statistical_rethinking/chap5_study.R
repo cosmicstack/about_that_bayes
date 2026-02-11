@@ -331,3 +331,34 @@ coordinates(dag5.7) <- list(x=c(M=0, K=1, N=2), y=c(M=0.5, K=1, N=0.5))
 MElist <- equivalentDAGs(dag5.7)
 drawdag(dag5.7)
 drawdag(MElist)
+
+
+################################################################################
+#####                         CATEGORICAL VARIABLES                        #####
+################################################################################
+
+data("Howell1")
+d <- Howell1
+str(d)
+
+d$sex <- ifelse(d$male == 1, 2, 1)
+
+model5.8_draft <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a[sex] + b[sex] * weight,
+    a[sex] ~ dnorm(178, 20),
+    b[sex] ~ dlnorm(0, 1),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d
+)
+
+precis(model5.8_draft, depth = 2)
+
+wseq <- seq(from=min(d$weight), to=max(d$weight), length.out=50)
+sim.dat <- data.frame(weight = rep(wseq, 2), sex = c(rep(1, 50), rep(2, 50)))
+mu <- link(model5.8_draft, data = sim.dat)
+dim(mu)
+
+# we are in hierarchical model territory now
