@@ -356,9 +356,44 @@ model5.8_draft <- quap(
 
 precis(model5.8_draft, depth = 2)
 
+post <- extract.samples(model5.8_draft)
+post$diff <- (post$a[, 1] - post$a[, 2]) + (post$b[, 1] - post$b[, 2]) * mean(d$weight)
+precis(post, depth = 2)
+
 wseq <- seq(from=min(d$weight), to=max(d$weight), length.out=50)
 sim.dat <- data.frame(weight = rep(wseq, 2), sex = c(rep(1, 50), rep(2, 50)))
 mu <- link(model5.8_draft, data = sim.dat)
 dim(mu)
 
 # we are in hierarchical model territory now
+
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+
+ggplot(data = data.frame(sex = c(rep(1, 50), rep(2, 50)), mu.mean, t(mu.PI), weight = rep(wseq, 2)), aes(weight, mu.mean, color = factor(sex))) +
+  geom_line() +
+  geom_ribbon(
+    aes(weight, ymin = X5., ymax = X94.), alpha = 0.2
+  )
+
+# many categories
+data(milk)
+d <- milk
+levels(d$clade)
+
+d$clade_id <- as.integer(d$clade)
+
+d$K <- standardize(d$kcal.per.g)
+
+model5.9 <- quap(
+  alist(
+    K ~ dnorm(mu, sigma),
+    mu <- a[clade_id],
+    a[clade_id] ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+
+labels <- paste("a[", 1:4, "]:", levels(d$clade), sep="")
+plot(precis(model5.9, depth = 2, pars = "a"), labels = labels, xlab = "Expected kcal (std)")
