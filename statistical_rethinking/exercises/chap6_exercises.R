@@ -196,3 +196,49 @@ EW.cf <- link(m.6h3, post = samples, data = list(A = 1))
 contrast <- EW.cf - EW
 dens(contrast)
 summary(contrast)
+
+# 6H4
+adjustmentSets(dag.6h3, exposure = "F", outcome = "W")
+m.6h4 <- quap(
+  alist(
+    W ~ dnorm(mu, sigma),
+    mu <- a + bF*F,
+    a ~ dnorm(0, 0.2),
+    bF ~ dnorm(0, 0.3),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(m.6h4)
+
+# 6H5
+adjustmentSets(dag.6h3, exposure = "G", outcome = "W")
+m.6h5 <- quap(
+  alist(
+    W ~ dnorm(mu, sigma),
+    mu <- a + bF*F + bG*G,
+    a ~ dnorm(0, 0.2),
+    bF ~ dnorm(0, 0.3),
+    bG ~ dnorm(0, 0.3),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(m.6h5)
+
+plot(coeftab(m.6h3, m.6h4, m.6h5), par=c("bF", "bG", "bA"))
+
+# ===
+
+adjustmentSets(dag.6h3, exposure = "F", outcome = "G")
+m2 <- quap(
+  alist(
+    G ~ dnorm(mu, sigma),
+    mu <- a + bF*F,
+    a ~ dnorm(0, 0.2),
+    bF ~ dnorm(0, 0.3),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+precis(m2)
