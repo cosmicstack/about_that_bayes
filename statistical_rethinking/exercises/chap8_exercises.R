@@ -141,3 +141,71 @@ data.frame(pareto.k = psis.8h3, waic.penalty = waic.8h3) %>%
   geom_vline(xintercept = 0.5)
 
 dd$country[which(psis.8h3 > 0.5)]
+
+# 8H4
+# Data Prep
+data("nettle")
+d <- nettle
+head(d)
+
+d$lang.per.cap <- d$num.lang/d$k.pop
+d$log.lang.per.cap <- log(d$lang.per.cap)
+
+hist(d$log.lang.per.cap)
+hist(d$mean.growing.season)
+hist(d$sd.growing.season)
+
+d$L <- standardize(d$log.lang.per.cap)
+hist(d$L)
+
+d$M <- standardize(d$mean.growing.season)
+hist(d$M)
+
+d$S <- standardize(d$sd.growing.season)
+hist(d$S)
+
+d$A <- standardize(log(d$area))
+hist(d$A)
+
+# Modeling
+# A -> L; M, S -> L; A -> M, S
+
+model.8h4.1 <- quap(
+  alist(
+    L ~ dstudent(1, mu, sigma),
+    mu <- a + bM*M + bA*A,
+    a ~ dnorm(0, 1.2),
+    c(bM, bA) ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+
+model.8h4.2 <- quap(
+  alist(
+    L ~ dstudent(1, mu, sigma),
+    mu <- a + bS*S + bA*A,
+    a ~ dnorm(0, 1.2),
+    bS ~ dnorm(0, 1.5),
+    bA ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+
+model.8h4.3 <- quap(
+  alist(
+    L ~ dstudent(2, mu, sigma),
+    mu <- a + bM*M + bS*S + bMS*M*S + bA*A,
+    a ~ dnorm(0, 1.2),
+    c(bM, bA) ~ dnorm(0, 1),
+    bS ~ dnorm(0, 1.5),
+    bMS ~ dnorm(0, 2),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+
+plot(compare(model.8h4.1, model.8h4.2, model.8h4.3, func = "WAIC"))
+precis(model.8h4.3)
+
