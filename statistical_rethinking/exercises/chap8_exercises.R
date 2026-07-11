@@ -209,3 +209,119 @@ model.8h4.3 <- quap(
 plot(compare(model.8h4.1, model.8h4.2, model.8h4.3, func = "WAIC"))
 precis(model.8h4.3)
 
+# 8H5
+data("Wines2012")
+d <- Wines2012
+d$std.score <- standardize(d$score)
+d$judge.ind <- as.integer(d$judge)
+d$wine.ind <- as.integer(d$wine)
+head(d)
+
+unique(d$judge)
+unique(d$wine)
+
+# Try a bad model
+model.8h5.bad <- quap(
+  alist(
+    std.score ~ dstudent(1, mu, sigma),
+    mu <- a[wine.ind] + b[judge.ind],
+    a[wine.ind] ~ dnorm(0, 0.5),
+    b[judge.ind] ~ dnorm(0, 1.5),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+
+precis(model.8h5.bad, depth = 2)
+prior <- extract.prior(model.8h5.bad)
+
+mu <- link(model.8h5.bad, post = prior)
+
+mu.mean <- apply(mu, 2, mean)
+hist(mu.mean)
+mu.PI <- apply(mu, 2, PI)
+
+data.frame(
+  x = 1:180,
+  mu.mean,
+  t(mu.PI)
+) %>%
+  ggplot(aes(x, mu.mean)) +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(aes(
+    ymin = X5.,
+    ymax = X94.
+  ),
+  alpha = 0.2)
+
+post <- extract.samples(model.8h5.bad)
+mu <- link(model.8h5.bad, post = post)
+
+mu.mean <- apply(mu, 2, mean)
+hist(mu.mean)
+mu.PI <- apply(mu, 2, PI)
+
+data.frame(
+  x = 1:180,
+  mu.mean,
+  t(mu.PI)
+) %>%
+  ggplot(aes(x, mu.mean)) +
+  geom_point(alpha = 0.5) +
+  geom_line(alpha = 0.6) +
+  geom_ribbon(aes(
+    ymin = X5.,
+    ymax = X94.
+  ),
+  alpha = 0.2)
+
+# Proper model
+model.8h5 <- quap(
+  alist(
+    std.score ~ dnorm(mu, sigma),
+    mu <- (Q[wine.ind] + O[wine.ind] - H[judge.ind]) * D[judge.ind],
+    Q[wine.ind] ~ dnorm(0, 0.5),
+    O[wine.ind] ~ dnorm(0, 0.5),
+    H[judge.ind] ~ dnorm(0, 0.5),
+    D[judge.ind] ~ dlnorm(0, 0.1),
+    sigma ~ dexp(1)
+  ),
+  data = d
+)
+
+prior <- extract.prior(model.8h5)
+dat <- expand.grid(wine.ind = 1:20, judge.ind = 1:9)
+mu <- link(model.8h5, post = prior, data = dat)
+
+mu.mean <- apply(mu, 2, mean)
+hist(mu.mean)
+mu.PI <- apply(mu, 2, PI)
+
+data.frame(
+  x = 1:180,
+  mu.mean,
+  t(mu.PI)
+) %>%
+  ggplot(aes(x, mu.mean)) +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(aes(
+    ymin = X5.,
+    ymax = X94.
+  ),
+  alpha = 0.2)
+
+post <- extract.samples(model.8h5)
+mu <- link(model.8h5, post = post, data = dat)
+hist(apply(mu, 2, mean))
+
+precis(model.8h5, depth = 2)
+
+judge.wine.means <- matrix(NA, nrow = 20, ncol = 9)
+inds <- seq(0, 180, 20)
+for (i in 1:9) {
+  judge.wine.means[, i] <- apply(mu[, (inds[i]+1):inds[i+1]], 2, mean)
+}
+
+judge.wine.means
