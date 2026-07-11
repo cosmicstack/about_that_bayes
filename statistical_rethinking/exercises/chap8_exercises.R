@@ -319,9 +319,17 @@ hist(apply(mu, 2, mean))
 precis(model.8h5, depth = 2)
 
 judge.wine.means <- matrix(NA, nrow = 20, ncol = 9)
+judge.wine.PI <- matrix(NA, nrow = 2, ncol = 9)
 inds <- seq(0, 180, 20)
 for (i in 1:9) {
   judge.wine.means[, i] <- apply(mu[, (inds[i]+1):inds[i+1]], 2, mean)
+  judge.wine.PI[, i] <- apply(apply(mu[, (inds[i]+1):inds[i+1]], 2, PI), 1, mean)
 }
 
-judge.wine.means
+judge.means <- apply(judge.wine.means, 2, mean)
+
+data.frame(judge.no = as.factor(1:9), avg = judge.means, t(judge.wine.PI)) %>%
+  mutate(lower.ci = X1, upper.ci = X2) %>%
+  ggplot(aes(judge.no, avg)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.ci, ymax = upper.ci), width = 0.2)
