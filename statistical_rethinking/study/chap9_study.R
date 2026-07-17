@@ -54,7 +54,7 @@ m9.1 <- ulam(
   iter = 1000
 )
 
-precis(m9.1, depth = 2, corr = T)
+precis(m9.1, depth = 2)
 pairs(m9.1)
 plot(precis(m9.1, depth = 2, prob = 0.89))
 show(m9.1)
