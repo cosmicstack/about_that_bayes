@@ -32,6 +32,9 @@ m9.1 <- ulam(
 )
 
 precis(m9.1, depth = 2)
+
+prior <- extract.prior(m9.1)
+mu <- link(m9.1, post = prior)
 ## ======= ##
 
 # 9M1
@@ -100,3 +103,17 @@ data.frame(parameters = c("a[1]", "a[2]", "b[1]", "b[2]", "sigma"), n.eff.mat) %
   geom_point() +
   geom_line() +
   scale_x_continuous(breaks = seq(100, 1000, 100))
+
+# 9H1
+
+mp <- ulam(
+  alist(
+    a ~ dnorm(0, 1),
+    b ~ dcauchy(0, 1)
+  ),
+  data = list(y = 1),
+  chains = 1
+)
+
+precis(mp)
+traceplot(mp)
