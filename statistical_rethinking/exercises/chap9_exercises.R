@@ -117,3 +117,138 @@ mp <- ulam(
 
 precis(mp)
 traceplot(mp)
+
+# 9H1
+data("WaffleDivorce")
+d <- WaffleDivorce
+head(d)
+d$A <- standardize(d$MedianAgeMarriage)
+d$M <- standardize(d$Marriage)
+d$D <- standardize(d$Divorce)
+
+dat.divorce <- list(
+  A = d$A,
+  M = d$M,
+  D = d$D
+)
+
+m5.1 <- ulam(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- a + bA * A,
+    a ~ dnorm(0 , 0.2),
+    bA ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = dat.divorce,
+  chains = 1
+)
+
+m5.2 <- ulam(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- a + bM * M,
+    a ~ dnorm(0 , 0.2),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = dat.divorce,
+  chains = 1
+)
+
+m5.3 <- ulam(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- a + bA * A + bM * M,
+    a ~ dnorm(0 , 0.2),
+    bA ~ dnorm(0, 0.5),
+    bM ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)
+  ),
+  data = dat.divorce,
+  chains = 1
+)
+
+# Checked all three models with 1 chain first, and then 4 chains to check individual
+# chains are converging, then reverted to 1 chain for actual sampling
+
+compare(m5.1, m5.2, m5.3, func = WAIC, log_lik = TRUE)
+
+# 9H3
+N <- 100
+set.seed(909)
+height <- rnorm(N, 10, 2)
+leg_prop <- runif(N, 0.4, 0.5)
+leg_left <- leg_prop * height + rnorm(N, 0, 0.02)
+leg_right <- leg_prop * height + rnorm(N, 0, 0.02)
+d <- data.frame(height, leg_left, leg_right)
+
+m6.1 <- ulam(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bl*leg_left + br*leg_right,
+    a ~ dnorm(10, 100),
+    c(bl, br) ~ dnorm(2, 10),
+    sigma ~ dexp(1)
+  ),
+  data = d,
+  chains = 4,
+  cores = 4,
+  start = list(
+    a = 10,
+    bl = 0,
+    br = 0.1,
+    sigma = 1
+  )
+)
+precis(m6.1)
+traceplot(m6.1)
+trankplot(m6.1)
+
+m6.2 <- ulam(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bl*leg_left + br*leg_right,
+    a ~ dnorm(10, 100),
+    c(bl, br) ~ dnorm(2, 10),
+    sigma ~ dexp(1)
+  ),
+  data = d,
+  chains = 4,
+  cores = 4,
+  constraints = list(br="lower=0"),
+  start = list(
+    a = 10,
+    bl = 0,
+    br = 0.1,
+    sigma = 1
+  )
+)
+
+precis(m6.2)
+traceplot(m6.2)
+trankplot(m6.2)
+
+plot(coeftab(m6.1, m6.2))
+plot(coeftab(m6.1, m6.2), pars=c("br", "bl"))
+
+m6.1_samples <- extract.samples(m6.1, pars=c("br", "bl"))
+m6.2_samples <- extract.samples(m6.2, pars=c("br", "bl"))
+
+data.frame(m6.1_samples) %>%
+  select(br, bl) %>%
+  pivot_longer(cols = c(br, bl), names_to = "param", values_to = "value") %>%
+  ggplot(aes(x = value, fill = param)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Unconstrained")
+
+data.frame(m6.2_samples) %>%
+  select(br, bl) %>%
+  pivot_longer(cols = c(br, bl), names_to = "param", values_to = "value") %>%
+  ggplot(aes(x = value, fill = param)) +
+  geom_density(alpha = 0.4) +
+  labs(title = "Constrained")
+
+# 9H4
+WAIC(m6.1, log_lik = TRUE)
+WAIC(m6.2, log_lik = TRUE)
