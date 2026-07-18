@@ -333,11 +333,13 @@ binom_ll <- function(p, n=9, k=6) {
   p <- ifelse(p == 0, 0.01, p)
   p <- ifelse(p == 1, 0.99, p)
   
-  log.lik <- log(factorial(n) / (factorial(n-k) * factorial (k))) + k * log(p) + (n-k) * log(1 - p)
-  -log.lik
+  -dbinom(k, n, p, log = TRUE)
 }
 
 grad <- function(p, n=9, k=6) {
+  p <- ifelse(p == 0, 0.01, p)
+  p <- ifelse(p == 1, 0.99, p)
+  
   del <- (k/p) - ((n-k)/(1-p))
   -del
 }
@@ -352,3 +354,26 @@ for (i in 2:tosses) {
   current.q <- q.new
 }
 
+# fixed
+U <- function(x, n = 9, k = 6) {
+  p <- 1 / (1 + exp(-x))
+  -( (k + 1) * log(p) + (n - k + 1) * log1p(-p) )
+}
+
+U_grad <- function(x, n = 9, k = 6) {
+  p <- 1 / (1 + exp(-x))
+  -( (k + 1) * (1 - p) - (n - k + 1) * p )
+}
+
+n_samples <- 1000
+x <- 0
+samples <- rep(NA, n_samples)
+for (i in 1:n_samples) {
+  res <- HMC2(U, U_grad, epsilon = 0.15, L = 11, current_q = x)
+  x <- res$q
+  samples[i] <- x
+}
+
+p_samples <- 1 / (1 + exp(-samples))
+dens(p_samples, xlim = c(0, 1))
+curve(dbeta(x, 7, 4), add = TRUE, col = 2, lwd = 2)
