@@ -249,6 +249,106 @@ data.frame(m6.2_samples) %>%
   geom_density(alpha = 0.4) +
   labs(title = "Constrained")
 
+# Simpler method: learn
+bind_rows(
+  Unconstrained = as.data.frame(extract.samples(m6.1, pars = c("bl", "br"))),
+  Constrained   = as.data.frame(extract.samples(m6.2, pars = c("bl", "br"))),
+  .id = "model"
+) %>%
+  pivot_longer(c(bl, br), names_to = "param") %>%
+  ggplot(aes(value, fill = param)) +
+  geom_density(alpha = 0.4) +
+  facet_wrap(~ model)
+
 # 9H4
 WAIC(m6.1, log_lik = TRUE)
 WAIC(m6.2, log_lik = TRUE)
+
+# 9H5
+weeks <- 1e4
+positions <- 0
+population <- as.integer(runif(10, min = 1e3, max = 1e4))
+current <- sample(seq(1, 10), 1)
+
+for (i in 1:weeks) {
+  positions[i] <- current
+  proposal.pos <- current + sample(c(-1,1), size = 1)
+  
+  proposal.pos <- ifelse(proposal.pos > 10, 1, proposal.pos)
+  proposal.pos <- ifelse(proposal.pos < 1, 10, proposal.pos)
+  
+  prob_move <- population[proposal.pos]/population[current]
+  current <- ifelse(runif(1) < prob_move, proposal.pos, current)
+}
+
+ggplot(data = data.frame(x=1:10, y=population), aes(x, y)) +
+  geom_col()
+
+data.frame(positions) %>%
+  group_by(positions) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(positions, n)) +
+  geom_col()
+
+data.frame(x = 1:length(positions), y = positions) %>%
+  ggplot(aes(x, y)) +
+  geom_line(alpha=0.5)
+
+# 9H6
+binom_ll <- function(p, n=9, k=6) {
+  log.lik <- log(factorial(n) / (factorial(n-k) * factorial (k))) + k * log(p) + (n-k) * log(1 - p)
+  log.lik
+}
+
+data.frame(p = p.grid) %>%
+  mutate(
+    log.l = map_dbl(p, binom_ll)
+  ) %>%
+  ggplot() +
+  geom_line(aes(p, log.l))
+
+tosses <- 1e4
+positions <- 0
+current <- sample(seq(0, 1, 0.01), 1)
+
+for (i in 1:tosses) {
+  positions[i] <- current
+  proposal.pos <- current + sample(c(-0.01,0.01), size = 1)
+  
+  proposal.pos <- ifelse(proposal.pos >= 1, 0.99, proposal.pos)
+  proposal.pos <- ifelse(proposal.pos <= 0, 0.01, proposal.pos)
+  
+  prob_move <- binom_ll(proposal.pos) / binom_ll(current)
+  current <- ifelse(runif(1) < prob_move, proposal.pos, current)
+}
+
+hist(positions)
+
+data.frame(x = 1:length(positions), y = positions) %>%
+  ggplot(aes(x, y)) +
+  geom_line(alpha=0.5)
+
+# 9H7
+binom_ll <- function(p, n=9, k=6) {
+  p <- ifelse(p == 0, 0.01, p)
+  p <- ifelse(p == 1, 0.99, p)
+  
+  log.lik <- log(factorial(n) / (factorial(n-k) * factorial (k))) + k * log(p) + (n-k) * log(1 - p)
+  -log.lik
+}
+
+grad <- function(p, n=9, k=6) {
+  del <- (k/p) - ((n-k)/(1-p))
+  -del
+}
+
+q.vals <- 0
+current.q <- sample(seq(0, 1, 0.01), 1)
+q.vals[1] <- current.q
+for (i in 2:tosses) {
+  result <- HMC2(binom_ll, grad, 0.03, 11, current.q)
+  q.new <- result$q
+  q.vals[i] <- q.new
+  current.q <- q.new
+}
+
