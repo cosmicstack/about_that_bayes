@@ -142,3 +142,108 @@ diff.p2 <- post$p[, 1] - post$p[, 2]
 precis(list(diff.a=diff.a, diff.p=diff.p, diff.p1=diff.p1, diff.p2=diff.p2))
 
 postcheck(m11.7)
+
+
+# ============================================================================ #
+
+data("Kline")
+d <- Kline
+head(d)
+
+d$P <- scale(log(d$population))
+d$contact_id <- ifelse(d$contact == "high", 2, 1)
+
+dat <- list(
+  T = d$total_tools,
+  P = d$P,
+  cid = d$contact_id
+)
+
+m11.9 <- ulam(
+  alist(
+    T ~ dpois(lambda),
+    log(lambda) <- a,
+    a ~ dnorm(3, 0.5)
+  ),
+  data = dat,
+  chains = 4,
+  log_lik = TRUE
+)
+traceplot(m11.9)
+
+m11.10 <- ulam(
+  alist(
+    T ~ dpois(lambda),
+    log(lambda) <- a[cid] + b[cid]*P,
+    a[cid] ~ dnorm(3, 0.5),
+    b[cid] ~ dnorm(0, 0.2)
+  ),
+  data = dat,
+  chains = 4,
+  log_lik = TRUE
+)
+traceplot(m11.10)
+
+compare(m11.9, m11.10, func = PSIS)
+
+dat2 <- list(
+  T = d$total_tools,
+  P = d$population,
+  cid = d$contact_id
+)
+
+m11.11 <- ulam(
+  alist(
+    T ~ dpois(lambda),
+    lambda <- exp(a[cid]) * P^b[cid]/g,
+    a[cid] ~ dnorm(1, 1),
+    b[cid] ~ dexp(1),
+    g ~ dexp(1)
+  ),
+  data = dat2,
+  chains = 8,
+  cores = 4,
+  log_lik = TRUE
+)
+traceplot(m11.11)
+
+precis(m11.11, depth = 2)
+
+num_days <- 30
+y <- rpois(num_days, 1.5)
+num_weeks <- 4
+y_new <- rpois(num_weeks, 0.5*7)
+y_all <- c(y, y_new)
+exposure <- c(rep(1, 30), rep(7, 4))
+monastery <- c(rep(0, 30), rep(1, 4))
+d <- data.frame(
+  y = y_all,
+  days = exposure,
+  monastery = monastery
+)
+
+head(d)
+
+d$log_days <- log(d$days)
+
+m11.12 <- ulam(
+  alist(
+    y ~ dpois(lambda),
+    log(lambda) <- log_days + a + b*monastery,
+    a ~ dnorm(0, 1),
+    b ~ dnorm(0, 1)
+  ),
+  data = list(y = d$y, log_days = d$log_days, monastery = d$monastery),
+  cores = 4,
+  chains = 4,
+  log_lik = TRUE,
+  iter = 8000
+)
+traceplot(m11.12)
+precis(m11.12, depth = 2)
+
+post <- extract.samples(m11.12)
+lambda.1 <- exp(post$a)
+lambda.2 <- exp(post$a + post$b)
+
+precis(data.frame(lambda.1, lambda.2))
