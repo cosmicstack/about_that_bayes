@@ -96,3 +96,71 @@ precis(m8.1, depth = 2)
 precis(m8.2, depth = 2)
 
 compare(m8.1, m8.2, func=PSIS)
+
+# 11H1
+m11.1 <- ulam(
+  alist(
+    pulled_left ~ dbinom(1, p),
+    logit(p) <- a,
+    a ~ dnorm(0, 1.5)
+  ),
+  data = list(pulled_left = d$pulled_left),
+  chains = 4,
+  log_lik = TRUE
+)
+
+m11.3 <- ulam(
+  alist(
+    pulled_left ~ dbinom(1, p),
+    logit(p) <- a + b[treatment],
+    a ~ dnorm(0, 1.5),
+    b[treatment] ~ dnorm(0, 0.5)
+  ),
+  data = list(pulled_left = d$pulled_left, actor = d$actor, treatment = d$treatment),
+  chains = 4,
+  log_lik = TRUE
+)
+
+m11.4 <- ulam(
+  alist(
+    pulled_left ~ dbinom(1, p),
+    logit(p) <- a[actor] + b[treatment],
+    a[actor] ~ dnorm(0, 1.5),
+    b[treatment] ~ dnorm(0, 0.5)
+  ),
+  data = list(pulled_left = d$pulled_left, actor = d$actor, treatment = d$treatment),
+  chains = 4,
+  log_lik = TRUE
+)
+
+plot(compare(m11.1, m11.3, m11.4, func = WAIC))
+
+# Sidetrack
+data("Howell2")
+tmp <- Howell2
+
+tmp <- tmp %>%
+  filter(!is.na(height) & !is.na(weight) & age > 17)
+
+head(tmp)
+
+m.tmp <- quap(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b*weight,
+    a ~ dnorm(178, 20),
+    b ~ dlnorm(0, 1),
+    sigma ~ dunif(0, 50)
+  ),
+  data = tmp
+)
+precis(m.tmp)
+
+mu <- link(m.tmp)
+mu.sim <- sim(m.tmp)
+
+# 11H2
+library(MASS)
+data("eagles")
+d <- eagles
+
