@@ -163,4 +163,150 @@ mu.sim <- sim(m.tmp)
 library(MASS)
 data("eagles")
 d <- eagles
+head(d)
 
+d <- d %>%
+  mutate(
+    P = if_else(P == "L", 1, 0),
+    A = if_else(A == "A", 1, 0),
+    V = if_else(V == "L", 1, 0)
+  )
+
+m.11h2.quap <- quap(
+  alist(
+    y ~ dbinom(n, p),
+    logit(p) <- a + bP*P + bA*A + bV*V,
+    a ~ dnorm(0, 1.5),
+    c(bP, bA, bV) ~ dnorm(0, 0.5)
+  ),
+  data = d
+)
+plot(precis(m.11h2.quap))
+
+m.11h2.mcmc <- ulam(
+  alist(
+    y ~ dbinom(n, p),
+    logit(p) <- a + bP*P + bA*A + bV*V,
+    a ~ dnorm(0, 1.5),
+    c(bP, bA, bV) ~ dnorm(0, 0.5)
+  ),
+  data = list(y=d$y, n=d$n, P=d$P, A=d$A, V=d$V),
+  chains = 4,
+  cores = 16,
+  log_lik = TRUE
+)
+traceplot(m.11h2.mcmc)
+plot(precis(m.11h2.mcmc))
+
+p <- link(m.11h2.mcmc)
+p.mean <- apply(p, 2, mean)
+p.PI <- apply(p, 2, PI)
+data.frame(row=seq(1, 8), mean=p.mean, t(p.PI)) %>%
+  dplyr::select(row, prob.low=X5., mean, prob.high=X94.) %>%
+  ggplot(aes(row, mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = prob.low, ymax = prob.high), width = 0.2) +
+  scale_x_continuous(breaks = seq(1, 8)) +
+  coord_flip() +
+  theme_bw()
+
+y.sim <- sim(m.11h2.mcmc)
+y.sim.mean <- apply(y.sim, 2, mean)
+y.sim.PI <- apply(y.sim, 2, PI)
+data.frame(row=seq(1, 8), mean=y.sim.mean, t(y.sim.PI)) %>%
+  dplyr::select(row, count.low=X5., mean, count.high=X94.) %>%
+  ggplot(aes(row, mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = count.low, ymax = count.high), width = 0.2) +
+  scale_x_continuous(breaks = seq(1, 8)) +
+  coord_flip() +
+  theme_bw()
+
+m.11h2.mcmc.2 <- ulam(
+  alist(
+    y ~ dbinom(n, p),
+    logit(p) <- a + bPA*P*A + bV*V,
+    a ~ dnorm(0, 1.5),
+    c(bPA, bV) ~ dnorm(0, 0.5)
+  ),
+  data = list(y=d$y, n=d$n, P=d$P, A=d$A, V=d$V),
+  chains = 4,
+  cores = 16,
+  log_lik = TRUE
+)
+
+compare(m.11h2.mcmc, m.11h2.mcmc.2)
+
+plot(compare(m.11h2.mcmc, m.11h2.mcmc.2))
+
+# 11H3
+data("salamanders")
+d <- salamanders
+head(d)
+
+m.11h3.quap <- quap(
+  alist(
+    SALAMAN ~ dpois(lambda),
+    log(lambda) <- a + b*PCTCOVER,
+    a ~ dnorm(3, 0.5),
+    b ~ dnorm(0, 0.2)
+  ),
+  data = d
+)
+
+prior <- extract.prior(m.11h3.quap)
+data.frame(a = prior$a[1:20], b = prior$b[1:20], x1 = 0.2, x2 = 0.5, x3 = 0.8, grp = factor(seq(1, 20))) %>%
+  pivot_longer(cols = c(x1, x2), values_to = "x") %>%
+  mutate(
+    lambda = exp(a + b*x),
+    S = rpois(40, lambda)
+  ) %>%
+  ggplot(aes(x, S, color=grp)) +
+  geom_line()
+
+m.11h3.mcmc <- ulam(
+  alist(
+    SALAMAN ~ dpois(lambda),
+    log(lambda) <- a + b*PCTCOVER,
+    a ~ dnorm(3, 0.5),
+    b ~ dnorm(0, 0.2)
+  ),
+  data = list(SALAMAN = d$SALAMAN, PCTCOVER = d$PCTCOVER),
+  chains = 4,
+  log_lik = TRUE
+)
+
+precis(m.11h3.quap)
+precis(m.11h3.mcmc)
+
+samples.quap <- extract.samples(m.11h3.quap, n=1e3)
+samples.mcmc <- extract.samples(m.11h3.mcmc, n=1e3)
+
+data.frame(quap = samples.quap$a, mcmc = samples.mcmc$a[1:1000]) %>%
+  pivot_longer(cols = c(quap, mcmc), names_to = "type") %>%
+  ggplot() +
+  geom_density(aes(x = value, fill = type), alpha = 0.4) +
+  theme_bw()
+
+data.frame(quap = samples.quap$b, mcmc = samples.mcmc$b[1:1000]) %>%
+  pivot_longer(cols = c(quap, mcmc), names_to = "type") %>%
+  ggplot() +
+  geom_density(aes(x = value, fill = type), alpha = 0.4) +
+  theme_bw()
+
+S <- sim(m.11h3.mcmc)
+S.mean <- apply(S, 2, mean)
+S.PI <- apply(S, 2, PI)
+data.frame(pct_cover=d$PCTCOVER, mean=S.mean, t(S.PI)) %>%
+  dplyr::select(pct_cover, count.low=X5., mean, count.high=X94.) %>%
+  ggplot(aes(pct_cover, mean)) +
+  geom_smooth() +
+  geom_point(data = d, aes(PCTCOVER, SALAMAN), inherit.aes = FALSE) +
+  geom_ribbon(aes(ymin = count.low, ymax = count.high), alpha = 0.2) +
+  theme_bw()
+
+
+# 11H4
+data("NWOGrants")
+d <- NWOGrants
+head(d)
