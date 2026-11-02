@@ -310,3 +310,101 @@ data.frame(pct_cover=d$PCTCOVER, mean=S.mean, t(S.PI)) %>%
 data("NWOGrants")
 d <- NWOGrants
 head(d)
+
+unique(d$discipline)
+
+library(dagitty)
+library(ggdag)
+
+dag <- dagitty("dag{G -> D -> A; G -> A}")
+coordinates(dag) <- list(
+  x = c(G=1, D=2, A=3),
+  y = c(G=1, D=2, A=1)
+)
+ggdag(dag)
+
+dat <- list(
+  A = d$awards,
+  E = d$applications,
+  G = ifelse(d$gender == "f", 1, 2),
+  D = as.integer(d$discipline)
+)
+
+m.11h4.total <- ulam(
+  alist(
+    A ~ dbinom(E, p),
+    logit(p) <- a[G],
+    a[G] ~ dnorm(0, 1.5)  
+  ),
+  data = dat,
+  chains = 4
+)
+
+trankplot(m.11h4.total)
+precis(m.11h4.total, depth = 2)
+
+post <- extract.samples(m.11h4.total)
+
+data.frame(prob = c(inv_logit(post$a)), gender = c(rep("F", 2000), rep("M", 2000))) %>%
+  ggplot(aes(x = prob, color = gender)) +
+  geom_density()
+
+# contrast
+data.frame(contrast = inv_logit(post$a[, 2]) - inv_logit(post$a[, 1])) %>%
+  ggplot(aes(x = contrast)) +
+  geom_density(fill = "cornsilk", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  theme_bw()
+
+
+m.11h4.direct <- ulam(
+  alist(
+    A ~ dbinom(E, p),
+    logit(p) <- a[G, D],
+    matrix[G, D]:a ~ dnorm(0, 1.5)
+  ),
+  data = dat,
+  chains = 4
+)
+
+trankplot(m.11h4.direct)
+precis(m.11h4.direct, depth = 3)
+
+post <- extract.samples(m.11h4.direct)
+dim(post$a)
+
+data.frame(prob = c(inv_logit(post$a[, 2, ]) - inv_logit(post$a[, 1, ]))) %>%
+  ggplot(aes(x = prob)) +
+  geom_density(fill = "cornsilk", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  theme_bw()
+
+
+data.frame(prob = inv_logit(post$a[, 2, ]) - inv_logit(post$a[, 1, ])) %>%
+  pivot_longer(cols = starts_with("prob"), values_to = "prob", names_to = "dept", names_prefix = "prob.") %>%
+  ggplot(aes(x = prob)) +
+  geom_density(fill = "cornsilk", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  facet_grid(vars(dept)) +
+  theme_bw()
+
+d %>%
+  group_by(discipline) %>%
+  summarize(
+    total_awards = sum(awards),
+    total_applications = sum(applications)
+  ) %>%
+  ungroup() %>%
+  mutate(award_rate = total_awards / total_applications)
+
+
+# 11H5
+dag <- dagitty("dag{G -> D -> A; G -> A; U -> D; U -> A}")
+coordinates(dag) <- list(
+  x = c(G=1, D=2, A=3, U=3),
+  y = c(G=1, D=2, A=1, U=2)
+)
+ggdag(dag) +
+  theme_minimal()
+
+# try simulating data here

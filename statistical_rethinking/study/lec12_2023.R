@@ -67,3 +67,23 @@ precis(mFE, depth = 2)
 posterior <- extract.samples(mFE)
 dens(posterior$bX)
 dens(posterior$bZ)
+
+# ============================================================================ #
+
+p <- 0.5
+n <- seq(10, 400, 10)
+ci.width <- function(n, p, alpha=0.05) {
+  moe <- qnorm(1-alpha/2) * sqrt(p*(1-p)/n)
+  return(moe*2)
+}
+y <- ci.width(n, p)
+data.frame(x = n, y = y) %>%
+  ggplot() +
+  geom_point(aes(x, y)) +
+  geom_vline(xintercept = 30, color = "salmon", linetype = 2) +
+  geom_vline(xintercept = 100, color = "red", linetype = 2) +
+  ylim(c(0, 1))
+
+x <- seq(1, 100)
+y <- 1/x^2
+plot(x, y)
