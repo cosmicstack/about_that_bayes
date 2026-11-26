@@ -32,7 +32,7 @@ head(d)
 
 dat <- list(
   D = d$deaths,
-  F = standardize(d$femininity),
+  F = (d$femininity - min(d$femininity))/max(d$femininity),
   S = standardize(d$damage_norm),
   P = standardize(d$min_pressure)
 )
@@ -109,7 +109,8 @@ m.12h3.1 <- ulam(
   ),
   data = dat,
   chains = 4,
-  cores = 4
+  cores = 4,
+  log_lik = T
 )
 trankplot(m.12h3.1)
 precis(m.12h3.1)
@@ -124,7 +125,8 @@ m.12h3.2 <- ulam(
   ),
   data = dat,
   chains = 4,
-  cores = 4
+  cores = 4,
+  log_lik = T
 )
 trankplot(m.12h3.2)
 precis(m.12h3.2)
@@ -139,9 +141,25 @@ m.12h3.3 <- ulam(
   ),
   data = dat,
   chains = 4,
-  cores = 4
+  cores = 4,
+  log_lik = T
 )
 trankplot(m.12h3.3)
 precis(m.12h3.3)
 
-plot(coeftab(m.12h3.1, m.12h3.2, m.12h3.3))
+plot(coeftab(m.12h3.1, m.12h3.2, m.12h3.3), par = c("bFS", "bFP"))
+plot(compare(m.12h3.1, m.12h3.2, m.12h3.3, func = WAIC))
+
+dat.m.12h3.1 <- list(F = c(0.1, 0.9), S = 0)
+sim.m.12h3.1 <- sim(m.12h3.1, data = dat.m.12h3.1)
+dens(sim.m.12h3.1[, 2] - sim.m.12h3.1[, 1])
+
+dat.m.12h3.2 <- list(F = c(0.1, 0.9), P = 0)
+sim.m.12h3.2 <- sim(m.12h3.2, data = dat.m.12h3.2)
+dens(sim.m.12h3.2[, 2] - sim.m.12h3.2[, 1])
+
+dat.m.12h3.3 <- list(F = c(0.1, 0.9), S = 0, P = 0)
+sim.m.12h3.3 <- sim(m.12h3.3, data = dat.m.12h3.3)
+dens(sim.m.12h3.3[, 2] - sim.m.12h3.3[, 1])
+
+# 12H4
